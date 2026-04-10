@@ -1,0 +1,50 @@
+{
+  "remove_internal_transfers": true,
+  "remove_test_transactions": ["Pagar.me"],
+  "remove_duplicate_card_bills": true,
+  "roommate": {
+    "name": "Adriano",
+    "house_reimbursement": 1560.0,
+    "loan_entries": [
+      { "date": "2026-03-04", "amount": 1300.0 }
+    ],
+    "income_splits": [
+      { "date": "2026-03-18", "amount": 2960.0, "loan_repayment": 1400.0 }
+    ]
+  },
+  "partner": {
+    "name": "Ana Júlia",
+    "reimbursements": [
+      {
+        "income_date": "2026-03-09",
+        "income_amount": 443.0,
+        "offset_desc": "MOBLY",
+        "offset_date": "2026-03-09"
+      },
+      {
+        "income_date": "2026-03-21",
+        "income_amount": 135.0,
+        "reduce_desc": "Wellhub",
+        "reduce_to": 2.50
+      },
+      {
+        "income_date": "2026-03-21",
+        "income_amount": 85.0,
+        "offset_desc": "Ana Julia",
+        "offset_date": "2026-03-21",
+        "offset_amount": 85.0
+      },
+      {
+        "income_date": "2026-03-22",
+        "income_amount": 40.0,
+        "reduce_desc": "Ana Julia",
+        "reduce_date": "2026-03-24",
+        "reduce_by": 40.0
+      }
+    ]
+  },
+  "cancel_pairs": [
+    { "desc_pattern": "Buser", "date": "2026-03-23" },
+    { "desc_pattern": "Arca", "date_range": ["2026-03-23", "2026-03-24"] }
+  ]
+}
