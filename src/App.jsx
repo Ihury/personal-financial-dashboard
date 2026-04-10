@@ -215,53 +215,125 @@ function DonutLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, name 
   );
 }
 
+// ── Sort Arrow ───────────────────────────────────────────────────────────────
+function SortArrow({ field, sortField, sortDir }) {
+  if (field !== sortField) return <span style={{ opacity: 0.25, marginLeft: 4 }}>{"\u2195"}</span>;
+  return <span style={{ marginLeft: 4 }}>{sortDir === "asc" ? "\u2191" : "\u2193"}</span>;
+}
+
 // ── Transactions Table ───────────────────────────────────────────────────────
-function TransactionsTable({ data, filter }) {
-  const rows = data
-    .filter(r => r.type === "expense" && (filter === "all" || r.category === filter))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount);
+function TransactionsTable({ data, categoryFilter, search, typeFilter, sortField, sortDir, onSort }) {
+  const rows = useMemo(() => {
+    let filtered = data.filter(r => {
+      if (typeFilter !== "all" && r.type !== typeFilter) return false;
+      if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (!r.description.toLowerCase().includes(q) && !r.category.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "date") cmp = a.date.localeCompare(b.date);
+      else if (sortField === "description") cmp = a.description.localeCompare(b.description);
+      else if (sortField === "category") cmp = a.category.localeCompare(b.category);
+      else if (sortField === "amount") cmp = a.amount - b.amount;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return filtered;
+  }, [data, categoryFilter, search, typeFilter, sortField, sortDir]);
+
+  const thStyle = (align = "left") => ({
+    textAlign: align, padding: "8px 12px", color: "#94a3b8", fontWeight: 600,
+    fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5,
+    cursor: "pointer", userSelect: "none", whiteSpace: "nowrap",
+  });
 
   return (
-    <div style={{ maxHeight: 360, overflowY: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr style={{ borderBottom: "2px solid #f1f5f9", position: "sticky", top: 0, background: "#fff" }}>
-            <th style={{ textAlign: "left", padding: "8px 12px", color: "#94a3b8", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Data</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", color: "#94a3b8", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Descrição</th>
-            <th style={{ textAlign: "left", padding: "8px 12px", color: "#94a3b8", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Categoria</th>
-            <th style={{ textAlign: "right", padding: "8px 12px", color: "#94a3b8", fontWeight: 600, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Valor</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #f8fafc" }}>
-              <td style={{ padding: "10px 12px", color: "#64748b", whiteSpace: "nowrap" }}>
-                {new Date(r.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-              </td>
-              <td style={{ padding: "10px 12px", color: "#0f172a", fontWeight: 500 }}>{r.description}</td>
-              <td style={{ padding: "10px 12px" }}>
-                <span style={{
-                  display: "inline-block", padding: "3px 10px", borderRadius: 20,
-                  fontSize: 11, fontWeight: 600,
-                  background: (COLORS[r.category] || "#94a3b8") + "18",
-                  color: COLORS[r.category] || "#64748b"
-                }}>{r.category}</span>
-              </td>
-              <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 600, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>
-                -{fmtFull(r.amount)}
-              </td>
+    <>
+      <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>
+        {rows.length} {rows.length === 1 ? "transação" : "transações"}
+        {(categoryFilter !== "all" || typeFilter !== "all" || search) && " (filtradas)"}
+      </div>
+      <div style={{ maxHeight: 480, overflowY: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
+              <th style={thStyle()} onClick={() => onSort("date")}>
+                Data <SortArrow field="date" sortField={sortField} sortDir={sortDir} />
+              </th>
+              <th style={thStyle()} onClick={() => onSort("description")}>
+                Descrição <SortArrow field="description" sortField={sortField} sortDir={sortDir} />
+              </th>
+              <th style={thStyle()} onClick={() => onSort("category")}>
+                Categoria <SortArrow field="category" sortField={sortField} sortDir={sortDir} />
+              </th>
+              <th style={thStyle("right")} onClick={() => onSort("amount")}>
+                Valor <SortArrow field="amount" sortField={sortField} sortDir={sortDir} />
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid #f8fafc", transition: "background 0.1s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <td style={{ padding: "10px 12px", color: "#64748b", whiteSpace: "nowrap" }}>
+                  {new Date(r.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                </td>
+                <td style={{ padding: "10px 12px", color: "#0f172a", fontWeight: 500 }}>{r.description}</td>
+                <td style={{ padding: "10px 12px" }}>
+                  <span style={{
+                    display: "inline-block", padding: "3px 10px", borderRadius: 20,
+                    fontSize: 11, fontWeight: 600,
+                    background: (COLORS[r.category] || "#94a3b8") + "18",
+                    color: COLORS[r.category] || "#64748b"
+                  }}>{r.category}</span>
+                </td>
+                <td style={{
+                  padding: "10px 12px", textAlign: "right", fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  color: r.type === "income" ? "#10b981" : "#ef4444"
+                }}>
+                  {r.type === "income" ? "+" : "-"}{fmtFull(r.amount)}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ padding: 32, textAlign: "center", color: "#94a3b8" }}>
+                  Nenhuma transação encontrada
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function FinancialDashboard() {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortField, setSortField] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
   const data = MARCH_DATA;
+
+  const handleSort = useCallback((field) => {
+    setSortField(prev => {
+      if (prev === field) {
+        setSortDir(d => d === "asc" ? "desc" : "asc");
+        return field;
+      }
+      setSortDir(field === "amount" ? "desc" : "asc");
+      return field;
+    });
+  }, []);
 
   const totalIncome = useMemo(() => data.filter(r => r.type === "income").reduce((s, r) => s + r.amount, 0), [data]);
   const totalExpenses = useMemo(() => data.filter(r => r.type === "expense").reduce((s, r) => s + r.amount, 0), [data]);
@@ -296,12 +368,6 @@ export default function FinancialDashboard() {
       return { label: w.label.split("\n")[0], sub: w.label.split("\n")[1], expenses, income };
     });
   }, [data]);
-
-  // Top 5 expenses
-  const topExpenses = useMemo(() =>
-    [...data].filter(r => r.type === "expense").sort((a, b) => b.amount - a.amount).slice(0, 5),
-    [data]
-  );
 
   return (
     <div style={{
@@ -446,57 +512,81 @@ export default function FinancialDashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Bottom row: Top 5 + Transactions */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16 }}>
-
-        {/* Top 5 Expenses */}
-        <div style={{
-          background: "#fff", borderRadius: 14, padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1px solid #f0f0f0"
-        }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: "0 0 16px 0" }}>Top 5 Gastos</h3>
-          {topExpenses.map((r, i) => (
-            <div key={i} style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "10px 0", borderBottom: i < 4 ? "1px solid #f8fafc" : "none"
-            }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{r.description}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                  {new Date(r.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
-                </div>
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>
-                {fmtFull(r.amount)}
-              </div>
+      {/* Transactions — full width */}
+      <div style={{
+        background: "#fff", borderRadius: 14, padding: 24,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1px solid #f0f0f0"
+      }}>
+        {/* Header + controls */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: 0 }}>
+            Transações {selectedCategory !== "all" ? `· ${selectedCategory}` : ""}
+          </h3>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Search */}
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  padding: "6px 12px 6px 32px", borderRadius: 8,
+                  border: "1px solid #e2e8f0", fontSize: 13,
+                  outline: "none", width: 200, background: "#f8fafc",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={e => e.target.style.borderColor = "#6366f1"}
+                onBlur={e => e.target.style.borderColor = "#e2e8f0"}
+              />
+              <svg style={{ position: "absolute", left: 10, top: 8, width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </div>
-          ))}
-        </div>
-
-        {/* Transactions Table */}
-        <div style={{
-          background: "#fff", borderRadius: 14, padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)", border: "1px solid #f0f0f0"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: "#0f172a", margin: 0 }}>
-              Transações {selectedCategory !== "all" ? `· ${selectedCategory}` : ""}
-            </h3>
+            {/* Type filter pills */}
+            {[
+              { key: "all", label: "Todas" },
+              { key: "expense", label: "Despesas" },
+              { key: "income", label: "Receitas" },
+            ].map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setTypeFilter(opt.key)}
+                style={{
+                  padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                  border: typeFilter === opt.key ? "1.5px solid #6366f1" : "1px solid #e2e8f0",
+                  background: typeFilter === opt.key ? "#6366f10d" : "#fff",
+                  color: typeFilter === opt.key ? "#6366f1" : "#64748b",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {/* Clear category filter */}
             {selectedCategory !== "all" && (
               <button
                 onClick={() => setSelectedCategory("all")}
                 style={{
-                  fontSize: 12, color: "#6366f1", background: "#6366f114",
-                  border: "none", borderRadius: 6, padding: "4px 10px",
-                  cursor: "pointer", fontWeight: 600
+                  fontSize: 12, color: "#6366f1", background: "#6366f10d",
+                  border: "1.5px solid #6366f1", borderRadius: 20, padding: "5px 14px",
+                  cursor: "pointer", fontWeight: 600,
                 }}
               >
-                Ver todas
+                {selectedCategory} &times;
               </button>
             )}
           </div>
-          <TransactionsTable data={data} filter={selectedCategory} />
         </div>
+        <TransactionsTable
+          data={data}
+          categoryFilter={selectedCategory}
+          search={search}
+          typeFilter={typeFilter}
+          sortField={sortField}
+          sortDir={sortDir}
+          onSort={handleSort}
+        />
       </div>
     </div>
   );
